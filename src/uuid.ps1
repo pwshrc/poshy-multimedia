@@ -11,6 +11,3 @@ function uuidl {
     return [guid]::NewGuid().ToString().ToLower()
 }
 
-# because upper case is like YELLING
-Set-Alias -Name uuid -Value uuidl
-Set-Alias -Name uuidgen -Value uuidl

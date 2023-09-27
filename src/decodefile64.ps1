@@ -14,4 +14,3 @@ function decodefile64 {
     [System.IO.File]::WriteAllText($decodedFile, $decoded)
     Write-Host "${encodedFile}'s content decoded from base64 and saved as ${decodedFile}"
 }
-Set-Alias -Name df64 -Value decodefile64

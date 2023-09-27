@@ -11,4 +11,3 @@ function decode64 {
     )
     return [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($encodedText))
 }
-Set-Alias -Name d64 -Value decode64
