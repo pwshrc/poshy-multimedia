@@ -14,4 +14,3 @@ function encodefile64 {
     [System.IO.File]::WriteAllText($encodedFile, $encoded)
     Write-Host "${file}'s content encoded in base64 and saved as ${encodedFile}"
 }
-Set-Alias -Name ef64 -Value encodefile64

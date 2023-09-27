@@ -11,4 +11,3 @@ function encode64 {
     )
     return [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($text))
 }
-Set-Alias -Name e64 -Value encode64
