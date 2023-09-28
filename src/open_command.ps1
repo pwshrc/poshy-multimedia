@@ -3,6 +3,14 @@ $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
 
+<#
+.SYNOPSIS
+    Opens the given target in the default application for its file type.
+.PARAMETER Target
+    The target to open.
+.PARAMETER Rest
+    Any additional arguments to pass to the open command.
+#>
 function open_command {
     param(
         [Parameter(Mandatory=$true, Position=0)]

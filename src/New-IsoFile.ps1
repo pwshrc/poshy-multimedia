@@ -8,36 +8,58 @@ if ($IsWindows) {
 .SYNOPSIS
     Creates a new .iso file
 .DESCRIPTION
-    The New-IsoFile cmdlet creates a new .iso file containing content from chosen folders
-.EXAMPLE
-    New-IsoFile "c:\tools","c:Downloads\utils"
-    This command creates a .iso file in $env:temp folder (default location) that contains c:\tools and c:\downloads\utils folders.
-    The folders themselves are included at the root of the .iso image.
+    The New-IsoFile cmdlet creates a new .iso file containing content from the chosen folder(s).
+.PARAMETER SourceDir
+    The directory containing the content which will be included in the resulting .iso.
+    Defaults to the current directory.
+.PARAMETER OutDir
+    The directory to which the resulting .iso file will be written.
+    Defaults to the parent directory of `SourceDir`.
+.PARAMETER TITLE
+    The basename of the resulting .iso file.
+    Defaults to the basename of `SourceDir`.
+.PARAMETER BootFile
+    The path to the executable file to be used as the boot image for the resulting .iso.
+.PARAMETER Media
+    The type of media to be used for the resulting .iso.
+    Defaults to `DVDPLUSRW_DUALLAYER`.
+    Refer to IMAPI_MEDIA_PHYSICAL_TYPE enumeration for possible media types: http://msdn.microsoft.com/en-us/library/windows/desktop/aa366217(v=vs.85).aspx
+.PARAMETER Force
+    Overwrite the target file if it already exists.
+.PARAMETER FromClipboard
+    Use the contents of the clipboard as the source directory(s).
+    This parameter is only supported on PowerShell v5 or higher.
 .EXAMPLE
     New-IsoFile -FromClipboard -Verbose
     Before running this command, select and copy (Ctrl-C) files/folders in Explorer first.
 .EXAMPLE
-    dir c:\WinPE | New-IsoFile -Path c:\temp\WinPE.iso -BootFile "${env:ProgramFiles(x86)}\Windows Kits\10\Assessment and Deployment Kit\Deployment Tools\amd64\Oscdimg\efisys.bin" -Media DVDPLUSR -Title "WinPE"
-    This command creates a bootable .iso file containing the content from c:\WinPE folder, but the folder itself isn't included. Boot file etfsboot.com can be found in Windows ADK. Refer to IMAPI_MEDIA_PHYSICAL_TYPE enumeration for possible media types: http://msdn.microsoft.com/en-us/library/windows/desktop/aa366217(v=vs.85).aspx
+    New-IsoFile c:\WinPE -OutDir c:\temp\WinPE.iso -BootFile "${env:ProgramFiles(x86)}\Windows Kits\10\Assessment and Deployment Kit\Deployment Tools\amd64\Oscdimg\efisys.bin" -Media DVDPLUSR -Title "WinPE"
+    This command creates a bootable .iso file containing the content from c:\WinPE folder, but the folder itself isn't included.
+    Boot file etfsboot.com can be found in Windows ADK.
 .NOTES
     NAME: New-IsoFile AUTHOR: Chris Wu LASTEDIT: 03/23/2016 14:46:50
     Found at https://www.thelowercasew.com/create-an-iso-file-with-powershell.
 #>
     function New-IsoFile {
-        [CmdletBinding(DefaultParameterSetName = 'Source')]
+        [CmdletBinding(DefaultParameterSetName = 'SourceDir')]
         Param(
-            [Parameter(Mandatory = $false, Position = 0)]
+            [Parameter(Mandatory = $true, Position = 0, ParameterSetName = 'SourceDir')]
             [ValidateNotNullOrEmpty()]
-            [string] $Title = (dirname $PWD),
+            [ValidateScript({ Test-Path $_ -PathType Container })]
+            [System.IO.DirectoryInfo[]] $SourceDir = @(Get-Item .),
 
-            [Parameter(Position = 1, Mandatory = $true, ValueFromPipeline = $true, ParameterSetName = 'Source')]
-            $Source = (Get-ChildItem $PWD),
+            [Parameter(Mandatory = $true, Position = 1)]
+            [ValidateNotNullOrEmpty()]
+            [ValidateScript({ Test-Path $_ -PathType Container })]
+            [System.IO.DirectoryInfo] $OutDir = $SourceDir[0].Parent,
 
-            [Parameter(Position = 2)]
-            [string] $Path = (Join-Path ((Get-Item $PWD).Parent) "${Title}.iso"),
+            [Parameter(Mandatory = $false)]
+            [ValidateNotNullOrEmpty()]
+            [string] $Title = $SourceDir[0].Name,
 
             [ValidateScript({ Test-Path -LiteralPath $_ -PathType Leaf })]
-            [string] $BootFile = $null,
+            [ValidateNotNullOrEmpty()]
+            [System.IO.FileInfo] $BootFile = $null,
 
             [ValidateSet('CDR', 'CDRW', 'DVDRAM', 'DVDPLUSR', 'DVDPLUSRW', 'DVDPLUSR_DUALLAYER', 'DVDDASHR', 'DVDDASHRW', 'DVDDASHR_DUALLAYER', 'DISK', 'DVDPLUSRW_DUALLAYER', 'BDR', 'BDRE')]
             [string] $Media = 'DVDPLUSRW_DUALLAYER',
@@ -85,16 +107,17 @@ public class ISOFile
             Write-Verbose -Message "Selected media type is $Media with value $($MediaType.IndexOf($Media))"
     ($Image = New-Object -com IMAPI2FS.MsftFileSystemImage -Property @{VolumeName = $Title }).ChooseImageDefaultsForMediaType($MediaType.IndexOf($Media))
 
+            $Path = Join-Path -Path $OutDir -ChildPath "${Title}.iso"
             if (!($Target = New-Item -Path $Path -ItemType File -Force:$Force -ErrorAction SilentlyContinue)) { Write-Error -Message "Cannot create file $Path. Use -Force parameter to overwrite if the target file already exists."; break }
         }
 
         Process {
             if ($FromClipboard) {
                 if ($PSVersionTable.PSVersion.Major -lt 5) { Write-Error -Message 'The -FromClipboard parameter is only supported on PowerShell v5 or higher'; break }
-                $Source = Get-Clipboard -Format FileDropList
+                $SourceDir = (Get-Clipboard -Format FileDropList | Get-Item)
             }
 
-            foreach ($item in $Source) {
+            foreach ($item in ($SourceDir | Get-ChildItem)) {
                 if ($item -isnot [System.IO.FileInfo] -and $item -isnot [System.IO.DirectoryInfo]) {
                     $item = Get-Item -LiteralPath $item
                 }
@@ -116,38 +139,49 @@ public class ISOFile
     }
 } # IsWindows
 else {
+<#
+.SYNOPSIS
+    Creates a new .iso file
+.DESCRIPTION
+    The New-IsoFile cmdlet creates a new .iso file containing content from the chosen folder.
+#>
     function New-IsoFile {
         param(
-            [Parameter(Mandatory = $false, Position = 0)]
+            [Parameter(Mandatory = $true, Position = 0)]
             [ValidateNotNullOrEmpty()]
-            [string] $Title = (dirname $PWD),
+            [ValidateScript({ Test-Path $_ -PathType Container })]
+            [System.IO.DirectoryInfo] $SourceDir = (Get-Item .),
 
             [Parameter(Mandatory = $true, Position = 1)]
             [ValidateNotNullOrEmpty()]
-            [string] $OutputDirPath = ((Get-Item $PWD).Parent),
+            [ValidateScript({ Test-Path $_ -PathType Container })]
+            [System.IO.DirectoryInfo] $OutDir = $SourceDir.Parent,
 
-            [Parameter(Mandatory = $true, Position = 2)]
+            [Parameter(Mandatory = $false)]
             [ValidateNotNullOrEmpty()]
-            [string] $SourceDirPath = $PWD
+            [string] $Title = $SourceDir.Name
         )
         Begin {
             if ((-not (Test-Command mkisofs)) -and (-not (Test-Command genisoimage))) {
                 throw "Either 'mkisofs' or 'genisoimage' are required, but neither is installed."
             }
-            [string] $finalIsoPath = Join-Path $OutputDirPath "${Title}.iso"
+            [string] $finalIsoPath = Join-Path $OutDir "${Title}.iso"
             if (Test-Path $finalIsoPath) {
                 throw "'${finalIsoPath}' already exists."
             }
         }
         Process {
-            Write-Debug "Writing '${Title}.iso' to '${OutputDirPath}' from '${SourceDirPath}'…"
+            Write-Debug "Writing '${Title}.iso' to '${OutDir}' from '${SourceDir}'…"
             if (Test-Command mkisofs) {
-                mkisofs -V "${Title}" -iso-level 3 -r -o "${finalIsoPath}" "${SourceDirPath}" | Out-Null
+                mkisofs -V "${Title}" -iso-level 3 -r -o "${finalIsoPath}" "${SourceDir}" | Out-Null
+                if (-not (Test-Path $finalIsoPath -ErrorAction SilentlyContinue)) {
+                    throw "Failed to create '${finalIsoPath}' - 'mkisofs' did not create the file and exited with code $LASTEXITCODE."
+                }
             } elseif (Test-Command genisoimage) {
-                genisoimage -V "${Title}" -iso-level 3 -r -o "${finalIsoPath}" "${SourceDirPath}" | Out-Null
-            }
-            if (-not (Test-Path $finalIsoPath)) {
-                throw "Failed to create '${finalIsoPath}'."
+                genisoimage -V "${Title}" -iso-level 3 -r -o "${finalIsoPath}" "${SourceDir}" | Out-Null
+                if (-not (Test-Path $finalIsoPath -ErrorAction SilentlyContinue)) {
+                    throw "Failed to create '${finalIsoPath}' - 'genisoimage' did not create the file and exited with code $LASTEXITCODE."
+                }
             }
             if ($LASTEXITCODE -eq 0) {
                 Get-Item $finalIsoPath

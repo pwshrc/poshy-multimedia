@@ -3,13 +3,17 @@ $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
 
-# extract file(s) from compressed status
+<#
+.SYNOPSIS
+    Extracts the content of an archive file.
+.PARAMETER File
+    The archive file to extract.
+#>
 function extract {
     param(
         [Parameter(Mandatory=$true, Position=0, ValueFromPipeline=$true, ValueFromRemainingArguments=$true)]
         [ValidateScript({ Test-Path $_ -PathType Leaf })]
         [ValidateNotNullOrEmpty()]
-        [ValidateCount(1, [int]::MaxValue)]
         [string[]] $File
     )
 
