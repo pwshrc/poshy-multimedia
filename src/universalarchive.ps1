@@ -1,6 +1,7 @@
 #!/usr/bin/env pwsh
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
+#Requires -Modules @{ ModuleName = "poshy-ecks"; RequiredVersion = "0.5.22" }
 
 
 <#
