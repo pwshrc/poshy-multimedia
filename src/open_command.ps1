@@ -33,6 +33,7 @@ function open_command {
     }
 
     # define the open command
+    $IsWSL = (Get-Variable -Name IsWSL -ValueOnly -ErrorAction SilentlyContinue) -or (Test-Path Env:\WSL_DISTRO_NAME -ErrorAction SilentlyContinue)
     if ($targetAsUri) {
         $open_cmd = @($Env:BROWSER)
     } elseif ($IsWSL) {
